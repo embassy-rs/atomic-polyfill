@@ -1,130 +1,141 @@
-
 use core::ops::Deref;
 use core::ops::DerefMut;
 
 pub use core::sync::atomic::Ordering;
-
-#[derive(Default)]
-#[repr(transparent)]
-pub struct AtomicU32 {
-    inner: core::sync::atomic::AtomicU32,
-}
-
-impl Deref for AtomicU32 {
-    type Target = core::sync::atomic::AtomicU32;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for AtomicU32 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl AtomicU32 {
-    pub const fn new(v: u32) -> AtomicU32 {
-        Self {
-            inner: core::sync::atomic::AtomicU32::new(v),
+macro_rules! atomic_int {
+    ($int_type:ident,$atomic_type:ident) => {
+        #[derive(Default)]
+        #[repr(transparent)]
+        pub struct $atomic_type {
+            inner: core::sync::atomic::$atomic_type,
         }
-    }
+
+        impl Deref for $atomic_type {
+            type Target = core::sync::atomic::$atomic_type;
+            fn deref(&self) -> &Self::Target {
+                &self.inner
+            }
+        }
+
+        impl DerefMut for $atomic_type {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.inner
+            }
+        }
+
+        impl $atomic_type {
+            pub const fn new(v: $int_type) -> $atomic_type {
+                Self {
+                    inner: core::sync::atomic::$atomic_type::new(v),
+                }
+            }
+        }
+
+        impl $atomic_type {
+            pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |_| val)
+            }
+
+            pub fn compare_exchange(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.compare_exchange_weak(current, new, success, failure)
+            }
+
+            pub fn compare_exchange_weak(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                _failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                critical_section(|| {
+                    let old = self.load(load_ordering(success));
+                    if old == current {
+                        self.store(new, store_ordering(success));
+                        Ok(old)
+                    } else {
+                        Err(old)
+                    }
+                })
+            }
+
+            pub fn fetch_add(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.wrapping_add(val))
+            }
+
+            pub fn fetch_sub(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.wrapping_sub(val))
+            }
+
+            pub fn fetch_and(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old & val)
+            }
+
+            pub fn fetch_nand(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| !(old & val))
+            }
+
+            pub fn fetch_or(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old | val)
+            }
+
+            pub fn fetch_xor(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old ^ val)
+            }
+
+            pub fn fetch_update<F>(
+                &self,
+                set_order: Ordering,
+                _fetch_order: Ordering,
+                mut f: F,
+            ) -> Result<$int_type, $int_type>
+            where
+                F: FnMut($int_type) -> Option<$int_type>,
+            {
+                critical_section(|| {
+                    let old = self.load(load_ordering(set_order));
+                    if let Some(new) = f(old) {
+                        self.store(new, set_order);
+                        Ok(old)
+                    } else {
+                        Err(old)
+                    }
+                })
+            }
+
+            pub fn fetch_max(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.max(val))
+            }
+
+            pub fn fetch_min(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.min(val))
+            }
+
+            fn op(&self, order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
+                critical_section(|| {
+                    let old = self.load(load_ordering(order));
+                    let new = f(old);
+                    self.store(new, store_ordering(order));
+                    old
+                })
+            }
+        }
+    };
 }
 
-impl AtomicU32 {
-    pub fn swap(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |_| val)
-    }
-
-    pub fn compare_exchange(
-        &self,
-        current: u32,
-        new: u32,
-        success: Ordering,
-        failure: Ordering,
-    ) -> Result<u32, u32> {
-        self.compare_exchange_weak(current, new, success, failure)
-    }
-
-    pub fn compare_exchange_weak(
-        &self,
-        current: u32,
-        new: u32,
-        success: Ordering,
-        _failure: Ordering,
-    ) -> Result<u32, u32> {
-        critical_section(|| {
-            let old = self.load(load_ordering(success));
-            if old == current {
-                self.store(new, store_ordering(success));
-                Ok(old)
-            } else {
-                Err(old)
-            }
-        })
-    }
-
-    pub fn fetch_add(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old.wrapping_add(val))
-    }
-
-    pub fn fetch_sub(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old.wrapping_sub(val))
-    }
-
-    pub fn fetch_and(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old & val)
-    }
-
-    pub fn fetch_nand(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| !(old & val))
-    }
-
-    pub fn fetch_or(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old | val)
-    }
-
-    pub fn fetch_xor(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old ^ val)
-    }
-
-    pub fn fetch_update<F>(
-        &self,
-        set_order: Ordering,
-        _fetch_order: Ordering,
-        mut f: F,
-    ) -> Result<u32, u32>
-    where
-        F: FnMut(u32) -> Option<u32>,
-    {
-        critical_section(|| {
-            let old = self.load(load_ordering(set_order));
-            if let Some(new) = f(old) {
-                self.store(new, set_order);
-                Ok(old)
-            } else {
-                Err(old)
-            }
-        })
-    }
-
-    pub fn fetch_max(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old.max(val))
-    }
-
-    pub fn fetch_min(&self, val: u32, order: Ordering) -> u32 {
-        self.op(order, |old| old.min(val))
-    }
-
-    fn op(&self, order: Ordering, f: impl FnOnce(u32) -> u32) -> u32 {
-        critical_section(|| {
-            let old = self.load(load_ordering(order));
-            let new = f(old);
-            self.store(new, store_ordering(order));
-            old
-        })
-    }
-}
+atomic_int!(u8, AtomicU8);
+atomic_int!(u16, AtomicU16);
+atomic_int!(u32, AtomicU32);
+atomic_int!(usize, AtomicUsize);
+atomic_int!(i8, AtomicI8);
+atomic_int!(i16, AtomicI16);
+atomic_int!(i32, AtomicI32);
+atomic_int!(isize, AtomicIsize);
 
 #[derive(Default)]
 #[repr(transparent)]
