@@ -1,6 +1,6 @@
 [package]
 name = "atomic-polyfill"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dario Nieuwenhuis <dirbaio@dirbaio.net>"]
 description = "Atomic polyfills, for targets where they're not available."
 repository = "https://github.com/akiles/atomic-polyfill"
