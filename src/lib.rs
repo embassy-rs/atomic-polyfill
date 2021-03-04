@@ -1,10 +1,10 @@
 #![no_std]
 
-#[cfg(feature="polyfill")]
+#[cfg(polyfill)]
 mod polyfill;
-#[cfg(feature="polyfill")]
+#[cfg(polyfill)]
 pub use polyfill::*;
 
-#[cfg(not(feature="polyfill"))]
+#[cfg(not(polyfill))]
 pub use core::sync::atomic::*;
 

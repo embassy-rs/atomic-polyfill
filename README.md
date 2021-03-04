@@ -1,9 +1,10 @@
 # atomic-polyfill
 
-This crate polyfills atomics on platforms where they're not available, using critical sections. It is intended to be a drop-in replacement for `core::sync::atomic`.
+This crate polyfills atomics on targets where they're not available, using critical sections. It is intended to be a drop-in replacement for `core::sync::atomic`.
 
-If Cargo feature `polyfill` is enabled, the crate exports the polyfills. If it's not, it simply reexports `core::sync::atomic::*`.
+On targets without native atomic support, polyfilling is automatically enabled. On targets with native support, `core::sync::atomic::*` is reexported.
 
-Supported platforms for polyfilling:
-- Single-core Cortex M
-- Multi-core coming soon
+Polyfilled targets:
+- thumbv6m-none-eabi
+
+Note: polyfill is currently based on critical sections disabling all interrupts, so it's not currently sound in multi-core targets.
