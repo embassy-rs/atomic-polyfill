@@ -2,6 +2,8 @@ use core::ops::Deref;
 use core::ops::DerefMut;
 
 pub use core::sync::atomic::Ordering;
+pub use core::sync::atomic::{compiler_fence, fence, spin_loop_hint};
+
 macro_rules! atomic_int {
     ($int_type:ident,$atomic_type:ident) => {
         #[derive(Default)]
