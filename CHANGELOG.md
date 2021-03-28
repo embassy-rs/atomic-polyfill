@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 0.1.2 - 2021-03-29
+
+- Added missing reexport of `fence` and `compiler_fence` in polyfilled mode.
+
 ## 0.1.1 - 2021-03-04
 
 - Added polyfills for AtomicU8, AtomicU16, AtomicUsize, AtomicI8, AtomicI16, AtomicI32, AtomicIsize
