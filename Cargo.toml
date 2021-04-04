@@ -14,5 +14,5 @@ categories = [
     "concurrency",
 ]
 
-[dependencies]
+[target.thumbv6m-none-eabi.dependencies]
 cortex-m = "0.7.1"
