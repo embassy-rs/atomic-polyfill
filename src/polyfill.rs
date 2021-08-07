@@ -101,7 +101,7 @@ macro_rules! atomic_int {
                 critical_section(|| {
                     let old = self.load(load_ordering(set_order));
                     if let Some(new) = f(old) {
-                        self.store(new, set_order);
+                        self.store(new, store_ordering(set_order));
                         Ok(old)
                     } else {
                         Err(old)
@@ -226,7 +226,7 @@ impl AtomicBool {
         critical_section(|| {
             let old = self.load(load_ordering(set_order));
             if let Some(new) = f(old) {
-                self.store(new, set_order);
+                self.store(new, store_ordering(set_order));
                 Ok(old)
             } else {
                 Err(old)
@@ -324,7 +324,7 @@ impl<T> AtomicPtr<T> {
         critical_section(|| {
             let old = self.load(load_ordering(set_order));
             if let Some(new) = f(old) {
-                self.store(new, set_order);
+                self.store(new, store_ordering(set_order));
                 Ok(old)
             } else {
                 Err(old)
