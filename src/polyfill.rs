@@ -8,8 +8,10 @@ use core::sync::atomic;
 
 #[cfg(polyfill_types)]
 mod atomic {
-    use super::*;
+    use crate::polyfill::critical_section;
     use core::cell::UnsafeCell;
+    use core::fmt;
+    use core::sync::atomic::Ordering;
 
     #[repr(C, align(1))]
     pub struct AtomicBool {
@@ -78,147 +80,213 @@ mod atomic {
         pub fn load(&self, _order: Ordering) -> *mut T {
             critical_section(|| unsafe { *self.p.get() })
         }
-        //
+
         pub fn store(&self, ptr: *mut T, _order: Ordering) {
             critical_section(|| unsafe { *self.p.get() = ptr })
         }
     }
+
+    macro_rules! atomic_int {
+        ($int_type:ident,$atomic_type:ident,$align:expr) => {
+            #[repr(C, align($align))]
+            pub struct $atomic_type {
+                v: UnsafeCell<$int_type>,
+            }
+
+            unsafe impl Sync for $atomic_type {}
+
+            impl Default for $atomic_type {
+                #[inline]
+                fn default() -> Self {
+                    Self::new(Default::default())
+                }
+            }
+
+            impl From<$int_type> for $atomic_type {
+                #[inline]
+                fn from(v: $int_type) -> Self {
+                    Self::new(v)
+                }
+            }
+
+            impl fmt::Debug for $atomic_type {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
+                }
+            }
+
+            impl $atomic_type {
+                pub const fn new(v: $int_type) -> Self {
+                    Self {
+                        v: UnsafeCell::new(v),
+                    }
+                }
+
+                pub fn get_mut(&mut self) -> &mut $int_type {
+                    self.v.get_mut()
+                }
+
+                pub fn load(&self, _order: Ordering) -> $int_type {
+                    critical_section(|| unsafe { *self.v.get() })
+                }
+
+                pub fn store(&self, val: $int_type, _order: Ordering) {
+                    critical_section(|| unsafe { *self.v.get() = val })
+                }
+            }
+        };
+    }
+
+    atomic_int!(u8, AtomicU8, 1);
+    atomic_int!(u16, AtomicU16, 2);
+    atomic_int!(u32, AtomicU32, 4);
+    atomic_int!(i8, AtomicI8, 1);
+    atomic_int!(i16, AtomicI16, 2);
+    atomic_int!(i32, AtomicI32, 4);
+    #[cfg(target_pointer_width = "32")]
+    atomic_int!(usize, AtomicUsize, 4);
+    #[cfg(target_pointer_width = "32")]
+    atomic_int!(isize, AtomicIsize, 4);
+    #[cfg(target_pointer_width = "64")]
+    atomic_int!(usize, AtomicUsize, 8);
+    #[cfg(target_pointer_width = "64")]
+    atomic_int!(isize, AtomicIsize, 8);
 }
 
-// macro_rules! atomic_int {
-//     ($int_type:ident,$atomic_type:ident) => {
-//         #[derive(Default)]
-//         #[repr(transparent)]
-//         pub struct $atomic_type {
-//             inner: atomic::$atomic_type,
-//         }
+macro_rules! atomic_int {
+    ($int_type:ident,$atomic_type:ident) => {
+        #[derive(Default)]
+        #[repr(transparent)]
+        pub struct $atomic_type {
+            inner: atomic::$atomic_type,
+        }
 
-//         impl Deref for $atomic_type {
-//             type Target = atomic::$atomic_type;
-//             fn deref(&self) -> &Self::Target {
-//                 &self.inner
-//             }
-//         }
+        impl Deref for $atomic_type {
+            type Target = atomic::$atomic_type;
+            fn deref(&self) -> &Self::Target {
+                &self.inner
+            }
+        }
 
-//         impl DerefMut for $atomic_type {
-//             fn deref_mut(&mut self) -> &mut Self::Target {
-//                 &mut self.inner
-//             }
-//         }
+        impl DerefMut for $atomic_type {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.inner
+            }
+        }
 
-//         impl $atomic_type {
-//             pub const fn new(v: $int_type) -> $atomic_type {
-//                 Self {
-//                     inner: atomic::$atomic_type::new(v),
-//                 }
-//             }
-//         }
+        impl $atomic_type {
+            pub const fn new(v: $int_type) -> $atomic_type {
+                Self {
+                    inner: atomic::$atomic_type::new(v),
+                }
+            }
+        }
 
-//         impl $atomic_type {
-//             pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |_| val)
-//             }
+        impl $atomic_type {
+            pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |_| val)
+            }
 
-//             pub fn compare_exchange(
-//                 &self,
-//                 current: $int_type,
-//                 new: $int_type,
-//                 success: Ordering,
-//                 failure: Ordering,
-//             ) -> Result<$int_type, $int_type> {
-//                 self.compare_exchange_weak(current, new, success, failure)
-//             }
+            pub fn compare_exchange(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                self.compare_exchange_weak(current, new, success, failure)
+            }
 
-//             pub fn compare_exchange_weak(
-//                 &self,
-//                 current: $int_type,
-//                 new: $int_type,
-//                 success: Ordering,
-//                 _failure: Ordering,
-//             ) -> Result<$int_type, $int_type> {
-//                 critical_section(|| {
-//                     let old = self.load(load_ordering(success));
-//                     if old == current {
-//                         self.store(new, store_ordering(success));
-//                         Ok(old)
-//                     } else {
-//                         Err(old)
-//                     }
-//                 })
-//             }
+            pub fn compare_exchange_weak(
+                &self,
+                current: $int_type,
+                new: $int_type,
+                success: Ordering,
+                _failure: Ordering,
+            ) -> Result<$int_type, $int_type> {
+                critical_section(|| {
+                    let old = self.load(load_ordering(success));
+                    if old == current {
+                        self.store(new, store_ordering(success));
+                        Ok(old)
+                    } else {
+                        Err(old)
+                    }
+                })
+            }
 
-//             pub fn fetch_add(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old.wrapping_add(val))
-//             }
+            pub fn fetch_add(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.wrapping_add(val))
+            }
 
-//             pub fn fetch_sub(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old.wrapping_sub(val))
-//             }
+            pub fn fetch_sub(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.wrapping_sub(val))
+            }
 
-//             pub fn fetch_and(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old & val)
-//             }
+            pub fn fetch_and(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old & val)
+            }
 
-//             pub fn fetch_nand(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| !(old & val))
-//             }
+            pub fn fetch_nand(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| !(old & val))
+            }
 
-//             pub fn fetch_or(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old | val)
-//             }
+            pub fn fetch_or(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old | val)
+            }
 
-//             pub fn fetch_xor(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old ^ val)
-//             }
+            pub fn fetch_xor(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old ^ val)
+            }
 
-//             pub fn fetch_update<F>(
-//                 &self,
-//                 set_order: Ordering,
-//                 _fetch_order: Ordering,
-//                 mut f: F,
-//             ) -> Result<$int_type, $int_type>
-//             where
-//                 F: FnMut($int_type) -> Option<$int_type>,
-//             {
-//                 critical_section(|| {
-//                     let old = self.load(load_ordering(set_order));
-//                     if let Some(new) = f(old) {
-//                         self.store(new, store_ordering(set_order));
-//                         Ok(old)
-//                     } else {
-//                         Err(old)
-//                     }
-//                 })
-//             }
+            pub fn fetch_update<F>(
+                &self,
+                set_order: Ordering,
+                _fetch_order: Ordering,
+                mut f: F,
+            ) -> Result<$int_type, $int_type>
+            where
+                F: FnMut($int_type) -> Option<$int_type>,
+            {
+                critical_section(|| {
+                    let old = self.load(load_ordering(set_order));
+                    if let Some(new) = f(old) {
+                        self.store(new, store_ordering(set_order));
+                        Ok(old)
+                    } else {
+                        Err(old)
+                    }
+                })
+            }
 
-//             pub fn fetch_max(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old.max(val))
-//             }
+            pub fn fetch_max(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.max(val))
+            }
 
-//             pub fn fetch_min(&self, val: $int_type, order: Ordering) -> $int_type {
-//                 self.op(order, |old| old.min(val))
-//             }
+            pub fn fetch_min(&self, val: $int_type, order: Ordering) -> $int_type {
+                self.op(order, |old| old.min(val))
+            }
 
-//             fn op(&self, order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
-//                 critical_section(|| {
-//                     let old = self.load(load_ordering(order));
-//                     let new = f(old);
-//                     self.store(new, store_ordering(order));
-//                     old
-//                 })
-//             }
-//         }
-//     };
-// }
+            fn op(&self, order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
+                critical_section(|| {
+                    let old = self.load(load_ordering(order));
+                    let new = f(old);
+                    self.store(new, store_ordering(order));
+                    old
+                })
+            }
+        }
+    };
+}
 
-// atomic_int!(u8, AtomicU8);
-// atomic_int!(u16, AtomicU16);
-// atomic_int!(u32, AtomicU32);
-// atomic_int!(usize, AtomicUsize);
-// atomic_int!(i8, AtomicI8);
-// atomic_int!(i16, AtomicI16);
-// atomic_int!(i32, AtomicI32);
-// atomic_int!(isize, AtomicIsize);
+atomic_int!(u8, AtomicU8);
+atomic_int!(u16, AtomicU16);
+atomic_int!(u32, AtomicU32);
+atomic_int!(usize, AtomicUsize);
+atomic_int!(i8, AtomicI8);
+atomic_int!(i16, AtomicI16);
+atomic_int!(i32, AtomicI32);
+atomic_int!(isize, AtomicIsize);
 
 #[derive(Default)]
 #[repr(transparent)]
