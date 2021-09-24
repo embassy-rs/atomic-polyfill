@@ -21,10 +21,10 @@ The right polyfill level is automatically picked based on the target and the ato
 | riscv32imac        | Native           | Full              |
 | Other<sup>2</sup>  | Native           | Native            |
 
-<sup>1<sup>: The hardware is capable of supporting atomic load/stores up to 32 bits, so this could be "CAS" instead of "Full". However,
+<sup>1</sup>: The hardware is capable of supporting atomic load/stores up to 32 bits, so this could be "CAS" instead of "Full". However,
 support for this is missing in Rust. See [discussion here](https://github.com/rust-lang/rust/pull/81752).
 
-<sup>2<sup>: `atomic-polyfill` assumes unknown targets have full native support. This may not be true, in which case the
+<sup>2</sup>: `atomic-polyfill` assumes unknown targets have full native support. This may not be true, in which case the
 build may fail. PRs for polyfilling more targets are welcome :)
 
 Note: polyfill is based on critical sections using the [`critical-section`](https://crates.io/crates/critical-section) crate. The default implementation is based on disabling all interrupts, so it's **unsound** on multi-core targets. It is possible to supply a custom 
