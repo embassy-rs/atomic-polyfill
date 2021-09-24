@@ -186,10 +186,12 @@ macro_rules! atomic_int {
 atomic_int!(u8, AtomicU8, u8_native, u8_cas, u8_full);
 atomic_int!(u16, AtomicU16, u16_native, u16_cas, u16_full);
 atomic_int!(u32, AtomicU32, u32_native, u32_cas, u32_full);
+atomic_int!(u64, AtomicU64, u64_native, u64_cas, u64_full);
 atomic_int!(usize, AtomicUsize, usize_native, usize_cas, usize_full);
 atomic_int!(i8, AtomicI8, i8_native, i8_cas, i8_full);
 atomic_int!(i16, AtomicI16, i16_native, i16_cas, i16_full);
 atomic_int!(i32, AtomicI32, i32_native, i32_cas, i32_full);
+atomic_int!(i64, AtomicI64, i64_native, i64_cas, i64_full);
 atomic_int!(isize, AtomicIsize, isize_native, isize_cas, isize_full);
 
 #[cfg(bool_native)]

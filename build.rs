@@ -26,23 +26,29 @@ impl fmt::Display for PolyfillLevel {
 fn main() {
     let target = env::var("TARGET").unwrap();
 
-    let level = if is_riscv_without_atomic_ext(&target) {
-        PolyfillLevel::Full
+    use PolyfillLevel::*;
+
+    let (level, level64) = if is_riscv_without_atomic_ext(&target) {
+        (Full, Full)
+    } else if target.starts_with("riscv32") {
+        (Native, Full)
     } else if target.starts_with("thumbv6m-") {
-        PolyfillLevel::Cas
+        (Cas, Full)
+    } else if target.starts_with("thumb") {
+        (Native, Full)
     } else {
-        PolyfillLevel::Native
+        (Native, Native)
     };
 
     println!("cargo:rustc-cfg=u8_{}", level);
     println!("cargo:rustc-cfg=u16_{}", level);
     println!("cargo:rustc-cfg=u32_{}", level);
-    println!("cargo:rustc-cfg=u64_{}", level);
+    println!("cargo:rustc-cfg=u64_{}", level64);
     println!("cargo:rustc-cfg=usize_{}", level);
     println!("cargo:rustc-cfg=i8_{}", level);
     println!("cargo:rustc-cfg=i16_{}", level);
     println!("cargo:rustc-cfg=i32_{}", level);
-    println!("cargo:rustc-cfg=i64_{}", level);
+    println!("cargo:rustc-cfg=i64_{}", level64);
     println!("cargo:rustc-cfg=isize_{}", level);
     println!("cargo:rustc-cfg=ptr_{}", level);
     println!("cargo:rustc-cfg=bool_{}", level);
