@@ -4,13 +4,31 @@
 
 This crate polyfills atomics on targets where they're not available, using critical sections. It is intended to be a drop-in replacement for `core::sync::atomic`.
 
-On targets without native atomic support, polyfilling is automatically enabled. On targets with native support, `core::sync::atomic::*` is reexported.
+There is three "levels" of polyfilling:
+- Native: No polyfilling is performed, the native `core::sync::atomic::AtomicXX` is reexported.
+- CAS: Only compare-and-set operations are polyfilled, while loads and stores are native.
+- Full: Both load/store and compare-and-set operations are polyfilled.
 
-Polyfilled targets:
-- thumbv6m-none-eabi
+## Target support
 
-Note: polyfill is currently based on critical sections disabling all interrupts, so it's not currently sound in multi-core targets.
+The right polyfill level is automatically picked based on the target and the atomic width:
 
+| Target             | Level            | Level for u64/i64 |
+|--------------------|------------------|-------------------|
+| thumbv6m           | CAS              | Full              |
+| thumbv7*, thumbv8* | Native           | Full              |
+| riscv32imc         | Full<sup>1</sup> | Full              |
+| riscv32imac        | Native           | Full              |
+| Other<sup>2</sup>  | Native           | Native            |
+
+<sup>1<sup>: The hardware is capable of supporting atomic load/stores up to 32 bits, so this could be "CAS" instead of "Full". However,
+support for this is missing in Rust. See [discussion here](https://github.com/rust-lang/rust/pull/81752).
+
+<sup>2<sup>: `atomic-polyfill` assumes unknown targets have full native support. This may not be true, in which case the
+build may fail. PRs for polyfilling more targets are welcome :)
+
+Note: polyfill is based on critical sections using the [`critical-section`](https://crates.io/crates/critical-section) crate. The default implementation is based on disabling all interrupts, so it's **unsound** on multi-core targets. It is possible to supply a custom 
+critical section implementation, check the `critical-section` docs for details.
 
 ## License
 
