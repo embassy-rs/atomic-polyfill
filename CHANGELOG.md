@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 0.1.4 - 2021-09-20
+
+- Added support for RISC-V.
+- Added support for "full polyfill" level, where load/stores are polyfilled, not just CAS operations.
+- Added support for `AtomicU64`, `AtomicI64`.
+
 ## 0.1.3 - 2021-08-07
 
 - Only import `cortex-m` when needed (#4)

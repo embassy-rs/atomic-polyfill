@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "atomic-polyfill"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "critical-section",
  "riscv-target",
