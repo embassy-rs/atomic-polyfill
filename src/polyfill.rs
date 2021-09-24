@@ -1,188 +1,66 @@
-use core::ops::Deref;
-use core::ops::DerefMut;
-
 pub use core::sync::atomic::{compiler_fence, fence, Ordering};
-
-#[cfg(not(polyfill_types))]
-use core::sync::atomic;
-
-#[cfg(polyfill_types)]
-mod atomic {
-    use crate::polyfill::critical_section;
-    use core::cell::UnsafeCell;
-    use core::fmt;
-    use core::sync::atomic::Ordering;
-
-    #[repr(C, align(1))]
-    pub struct AtomicBool {
-        v: UnsafeCell<u8>,
-    }
-
-    impl Default for AtomicBool {
-        /// Creates an `AtomicBool` initialized to `false`.
-        #[inline]
-        fn default() -> Self {
-            Self::new(false)
-        }
-    }
-
-    unsafe impl Sync for AtomicBool {}
-
-    impl AtomicBool {
-        pub const fn new(v: bool) -> AtomicBool {
-            AtomicBool {
-                v: UnsafeCell::new(v as u8),
-            }
-        }
-
-        pub fn get_mut(&mut self) -> &mut bool {
-            // SAFETY: the mutable reference guarantees unique ownership.
-            unsafe { &mut *(self.v.get() as *mut bool) }
-        }
-
-        pub fn load(&self, _order: Ordering) -> bool {
-            critical_section(|| unsafe { *self.v.get() != 0 })
-        }
-
-        pub fn store(&self, val: bool, _order: Ordering) {
-            critical_section(|| unsafe { *self.v.get() = val as u8 })
-        }
-    }
-
-    #[cfg_attr(target_pointer_width = "16", repr(C, align(2)))]
-    #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
-    #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
-    pub struct AtomicPtr<T> {
-        p: UnsafeCell<*mut T>,
-    }
-
-    impl<T> Default for AtomicPtr<T> {
-        /// Creates a null `AtomicPtr<T>`.
-        fn default() -> AtomicPtr<T> {
-            AtomicPtr::new(core::ptr::null_mut())
-        }
-    }
-
-    unsafe impl<T> Sync for AtomicPtr<T> {}
-    unsafe impl<T> Send for AtomicPtr<T> {}
-
-    impl<T> AtomicPtr<T> {
-        pub const fn new(p: *mut T) -> AtomicPtr<T> {
-            AtomicPtr {
-                p: UnsafeCell::new(p),
-            }
-        }
-
-        pub fn get_mut(&mut self) -> &mut *mut T {
-            self.p.get_mut()
-        }
-
-        pub fn load(&self, _order: Ordering) -> *mut T {
-            critical_section(|| unsafe { *self.p.get() })
-        }
-
-        pub fn store(&self, ptr: *mut T, _order: Ordering) {
-            critical_section(|| unsafe { *self.p.get() = ptr })
-        }
-    }
-
-    macro_rules! atomic_int {
-        ($int_type:ident,$atomic_type:ident,$align:expr) => {
-            #[repr(C, align($align))]
-            pub struct $atomic_type {
-                v: UnsafeCell<$int_type>,
-            }
-
-            unsafe impl Sync for $atomic_type {}
-
-            impl Default for $atomic_type {
-                #[inline]
-                fn default() -> Self {
-                    Self::new(Default::default())
-                }
-            }
-
-            impl From<$int_type> for $atomic_type {
-                #[inline]
-                fn from(v: $int_type) -> Self {
-                    Self::new(v)
-                }
-            }
-
-            impl fmt::Debug for $atomic_type {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
-                }
-            }
-
-            impl $atomic_type {
-                pub const fn new(v: $int_type) -> Self {
-                    Self {
-                        v: UnsafeCell::new(v),
-                    }
-                }
-
-                pub fn get_mut(&mut self) -> &mut $int_type {
-                    self.v.get_mut()
-                }
-
-                pub fn load(&self, _order: Ordering) -> $int_type {
-                    critical_section(|| unsafe { *self.v.get() })
-                }
-
-                pub fn store(&self, val: $int_type, _order: Ordering) {
-                    critical_section(|| unsafe { *self.v.get() = val })
-                }
-            }
-        };
-    }
-
-    atomic_int!(u8, AtomicU8, 1);
-    atomic_int!(u16, AtomicU16, 2);
-    atomic_int!(u32, AtomicU32, 4);
-    atomic_int!(i8, AtomicI8, 1);
-    atomic_int!(i16, AtomicI16, 2);
-    atomic_int!(i32, AtomicI32, 4);
-    #[cfg(target_pointer_width = "32")]
-    atomic_int!(usize, AtomicUsize, 4);
-    #[cfg(target_pointer_width = "32")]
-    atomic_int!(isize, AtomicIsize, 4);
-    #[cfg(target_pointer_width = "64")]
-    atomic_int!(usize, AtomicUsize, 8);
-    #[cfg(target_pointer_width = "64")]
-    atomic_int!(isize, AtomicIsize, 8);
-}
 
 macro_rules! atomic_int {
     ($int_type:ident,$atomic_type:ident) => {
-        #[derive(Default)]
         #[repr(transparent)]
         pub struct $atomic_type {
-            inner: atomic::$atomic_type,
+            #[cfg(polyfill_types)]
+            inner: core::cell::UnsafeCell<$int_type>,
+            #[cfg(not(polyfill_types))]
+            inner: core::sync::atomic::$atomic_type,
         }
 
-        impl Deref for $atomic_type {
-            type Target = atomic::$atomic_type;
-            fn deref(&self) -> &Self::Target {
-                &self.inner
+        unsafe impl Send for $atomic_type {}
+        unsafe impl Sync for $atomic_type {}
+
+        impl Default for $atomic_type {
+            #[inline]
+            fn default() -> Self {
+                Self::new(Default::default())
             }
         }
 
-        impl DerefMut for $atomic_type {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.inner
+        impl From<$int_type> for $atomic_type {
+            #[inline]
+            fn from(v: $int_type) -> Self {
+                Self::new(v)
+            }
+        }
+
+        impl core::fmt::Debug for $atomic_type {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
             }
         }
 
         impl $atomic_type {
-            pub const fn new(v: $int_type) -> $atomic_type {
+            pub const fn new(v: $int_type) -> Self {
                 Self {
-                    inner: atomic::$atomic_type::new(v),
+                    #[cfg(polyfill_types)]
+                    inner: core::cell::UnsafeCell::new(v),
+                    #[cfg(not(polyfill_types))]
+                    inner: core::sync::atomic::$atomic_type::new(v),
                 }
             }
-        }
 
-        impl $atomic_type {
+            pub fn get_mut(&mut self) -> &mut $int_type {
+                self.inner.get_mut()
+            }
+
+            pub fn load(&self, _order: Ordering) -> $int_type {
+                #[cfg(polyfill_types)]
+                return critical_section(|| unsafe { *self.inner.get() });
+                #[cfg(not(polyfill_types))]
+                return self.inner.load(_order);
+            }
+
+            pub fn store(&self, val: $int_type, _order: Ordering) {
+                #[cfg(polyfill_types)]
+                return critical_section(|| unsafe { *self.inner.get() = val });
+                #[cfg(not(polyfill_types))]
+                return self.inner.store(val, _order);
+            }
+
             pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
                 self.op(order, |_| val)
             }
@@ -288,34 +166,49 @@ atomic_int!(i16, AtomicI16);
 atomic_int!(i32, AtomicI32);
 atomic_int!(isize, AtomicIsize);
 
-#[derive(Default)]
 #[repr(transparent)]
 pub struct AtomicBool {
-    inner: atomic::AtomicBool,
+    #[cfg(polyfill_types)]
+    inner: core::cell::UnsafeCell<bool>,
+    #[cfg(not(polyfill_types))]
+    inner: core::sync::atomic::AtomicBool,
 }
 
-impl Deref for AtomicBool {
-    type Target = atomic::AtomicBool;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+impl Default for AtomicBool {
+    /// Creates an `AtomicBool` initialized to `false`.
+    #[inline]
+    fn default() -> Self {
+        Self::new(false)
     }
 }
 
-impl DerefMut for AtomicBool {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
+unsafe impl Send for AtomicBool {}
+unsafe impl Sync for AtomicBool {}
 
 impl AtomicBool {
     pub const fn new(v: bool) -> AtomicBool {
         Self {
-            inner: atomic::AtomicBool::new(v),
+            #[cfg(polyfill_types)]
+            inner: core::cell::UnsafeCell::new(v),
+            #[cfg(not(polyfill_types))]
+            inner: core::sync::atomic::AtomicBool::new(v),
         }
     }
-}
 
-impl AtomicBool {
+    pub fn load(&self, _order: Ordering) -> bool {
+        #[cfg(polyfill_types)]
+        return critical_section(|| unsafe { *self.inner.get() });
+        #[cfg(not(polyfill_types))]
+        return self.inner.load(_order);
+    }
+
+    pub fn store(&self, val: bool, _order: Ordering) {
+        #[cfg(polyfill_types)]
+        return critical_section(|| unsafe { *self.inner.get() = val });
+        #[cfg(not(polyfill_types))]
+        return self.inner.store(val, _order);
+    }
+
     pub fn swap(&self, val: bool, order: Ordering) -> bool {
         self.op(order, |_| val)
     }
@@ -402,34 +295,53 @@ impl AtomicBool {
     }
 }
 
-#[derive(Default)]
 #[repr(transparent)]
 pub struct AtomicPtr<T> {
-    inner: atomic::AtomicPtr<T>,
+    #[cfg(polyfill_types)]
+    inner: core::cell::UnsafeCell<*mut T>,
+    #[cfg(not(polyfill_types))]
+    inner: core::sync::atomic::AtomicPtr<T>,
 }
 
-impl<T> Deref for AtomicPtr<T> {
-    type Target = atomic::AtomicPtr<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+impl<T> Default for AtomicPtr<T> {
+    /// Creates a null `AtomicPtr<T>`.
+    #[inline]
+    fn default() -> Self {
+        Self::new(core::ptr::null_mut())
     }
 }
 
-impl<T> DerefMut for AtomicPtr<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
+unsafe impl<T> Sync for AtomicPtr<T> {}
+unsafe impl<T> Send for AtomicPtr<T> {}
 
 impl<T> AtomicPtr<T> {
     pub const fn new(v: *mut T) -> AtomicPtr<T> {
         Self {
-            inner: atomic::AtomicPtr::new(v),
+            #[cfg(polyfill_types)]
+            inner: core::cell::UnsafeCell::new(v),
+            #[cfg(not(polyfill_types))]
+            inner: core::sync::atomic::AtomicPtr::new(v),
         }
     }
-}
 
-impl<T> AtomicPtr<T> {
+    pub fn get_mut(&mut self) -> &mut *mut T {
+        self.inner.get_mut()
+    }
+
+    pub fn load(&self, _order: Ordering) -> *mut T {
+        #[cfg(polyfill_types)]
+        return critical_section(|| unsafe { *self.inner.get() });
+        #[cfg(not(polyfill_types))]
+        return self.inner.load(_order);
+    }
+
+    pub fn store(&self, val: *mut T, _order: Ordering) {
+        #[cfg(polyfill_types)]
+        return critical_section(|| unsafe { *self.inner.get() = val });
+        #[cfg(not(polyfill_types))]
+        return self.inner.store(val, _order);
+    }
+
     pub fn swap(&self, val: *mut T, order: Ordering) -> *mut T {
         self.op(order, |_| val)
     }
