@@ -515,10 +515,5 @@ fn store_ordering(order: Ordering) -> Ordering {
 }
 
 fn critical_section<R>(f: impl FnOnce() -> R) -> R {
-    #[cfg(target_arch = "arm")]
-    use cortex_m as arch;
-    #[cfg(target_arch = "riscv32")]
-    use riscv as arch;
-
-    arch::interrupt::free(|_| f())
+    critical_section::with(move |_| f())
 }
