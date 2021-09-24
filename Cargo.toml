@@ -14,11 +14,8 @@ categories = [
   "concurrency",
 ]
 
-[target.thumbv6m-none-eabi.dependencies]
-cortex-m = {version = "0.7.1"}
-
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-riscv = {version = "0.7.0"}
-
 [build-dependencies]
 riscv-target = "0.1.2"
+
+[dependencies]
+critical-section = "0.2.4"
