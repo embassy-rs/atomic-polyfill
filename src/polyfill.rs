@@ -1,18 +1,25 @@
 pub use core::sync::atomic::{compiler_fence, fence, Ordering};
 
 macro_rules! atomic_int {
-    ($int_type:ident,$atomic_type:ident) => {
+    ($int_type:ident,$atomic_type:ident, $cfg_native:ident, $cfg_cas:ident, $cfg_full:ident) => {
+        #[cfg($cfg_native)]
+        pub use core::sync::atomic::$atomic_type;
+
+        #[cfg(not($cfg_native))]
         #[repr(transparent)]
         pub struct $atomic_type {
-            #[cfg(polyfill_types)]
+            #[cfg($cfg_full)]
             inner: core::cell::UnsafeCell<$int_type>,
-            #[cfg(not(polyfill_types))]
+            #[cfg(not($cfg_full))]
             inner: core::sync::atomic::$atomic_type,
         }
 
+        #[cfg(not($cfg_native))]
         unsafe impl Send for $atomic_type {}
+        #[cfg(not($cfg_native))]
         unsafe impl Sync for $atomic_type {}
 
+        #[cfg(not($cfg_native))]
         impl Default for $atomic_type {
             #[inline]
             fn default() -> Self {
@@ -20,6 +27,7 @@ macro_rules! atomic_int {
             }
         }
 
+        #[cfg(not($cfg_native))]
         impl From<$int_type> for $atomic_type {
             #[inline]
             fn from(v: $int_type) -> Self {
@@ -27,18 +35,20 @@ macro_rules! atomic_int {
             }
         }
 
+        #[cfg(not($cfg_native))]
         impl core::fmt::Debug for $atomic_type {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
             }
         }
 
+        #[cfg(not($cfg_native))]
         impl $atomic_type {
             pub const fn new(v: $int_type) -> Self {
                 Self {
-                    #[cfg(polyfill_types)]
+                    #[cfg($cfg_full)]
                     inner: core::cell::UnsafeCell::new(v),
-                    #[cfg(not(polyfill_types))]
+                    #[cfg(not($cfg_full))]
                     inner: core::sync::atomic::$atomic_type::new(v),
                 }
             }
@@ -48,16 +58,16 @@ macro_rules! atomic_int {
             }
 
             pub fn load(&self, _order: Ordering) -> $int_type {
-                #[cfg(polyfill_types)]
+                #[cfg($cfg_full)]
                 return critical_section(|| unsafe { *self.inner.get() });
-                #[cfg(not(polyfill_types))]
+                #[cfg(not($cfg_full))]
                 return self.inner.load(_order);
             }
 
             pub fn store(&self, val: $int_type, _order: Ordering) {
-                #[cfg(polyfill_types)]
+                #[cfg($cfg_full)]
                 return critical_section(|| unsafe { *self.inner.get() = val });
-                #[cfg(not(polyfill_types))]
+                #[cfg(not($cfg_full))]
                 return self.inner.store(val, _order);
             }
 
@@ -157,23 +167,28 @@ macro_rules! atomic_int {
     };
 }
 
-atomic_int!(u8, AtomicU8);
-atomic_int!(u16, AtomicU16);
-atomic_int!(u32, AtomicU32);
-atomic_int!(usize, AtomicUsize);
-atomic_int!(i8, AtomicI8);
-atomic_int!(i16, AtomicI16);
-atomic_int!(i32, AtomicI32);
-atomic_int!(isize, AtomicIsize);
+atomic_int!(u8, AtomicU8, u8_native, u8_cas, u8_full);
+atomic_int!(u16, AtomicU16, u16_native, u16_cas, u16_full);
+atomic_int!(u32, AtomicU32, u32_native, u32_cas, u32_full);
+atomic_int!(usize, AtomicUsize, usize_native, usize_cas, usize_full);
+atomic_int!(i8, AtomicI8, i8_native, i8_cas, i8_full);
+atomic_int!(i16, AtomicI16, i16_native, i16_cas, i16_full);
+atomic_int!(i32, AtomicI32, i32_native, i32_cas, i32_full);
+atomic_int!(isize, AtomicIsize, isize_native, isize_cas, isize_full);
 
+#[cfg(bool_native)]
+pub use core::sync::atomic::AtomicBool;
+
+#[cfg(not(bool_native))]
 #[repr(transparent)]
 pub struct AtomicBool {
-    #[cfg(polyfill_types)]
+    #[cfg(bool_full)]
     inner: core::cell::UnsafeCell<bool>,
-    #[cfg(not(polyfill_types))]
+    #[cfg(not(bool_full))]
     inner: core::sync::atomic::AtomicBool,
 }
 
+#[cfg(not(bool_native))]
 impl Default for AtomicBool {
     /// Creates an `AtomicBool` initialized to `false`.
     #[inline]
@@ -182,30 +197,33 @@ impl Default for AtomicBool {
     }
 }
 
+#[cfg(not(bool_native))]
 unsafe impl Send for AtomicBool {}
+#[cfg(not(bool_native))]
 unsafe impl Sync for AtomicBool {}
 
+#[cfg(not(bool_native))]
 impl AtomicBool {
     pub const fn new(v: bool) -> AtomicBool {
         Self {
-            #[cfg(polyfill_types)]
+            #[cfg(bool_full)]
             inner: core::cell::UnsafeCell::new(v),
-            #[cfg(not(polyfill_types))]
+            #[cfg(not(bool_full))]
             inner: core::sync::atomic::AtomicBool::new(v),
         }
     }
 
     pub fn load(&self, _order: Ordering) -> bool {
-        #[cfg(polyfill_types)]
+        #[cfg(bool_full)]
         return critical_section(|| unsafe { *self.inner.get() });
-        #[cfg(not(polyfill_types))]
+        #[cfg(not(bool_full))]
         return self.inner.load(_order);
     }
 
     pub fn store(&self, val: bool, _order: Ordering) {
-        #[cfg(polyfill_types)]
+        #[cfg(bool_full)]
         return critical_section(|| unsafe { *self.inner.get() = val });
-        #[cfg(not(polyfill_types))]
+        #[cfg(not(bool_full))]
         return self.inner.store(val, _order);
     }
 
@@ -295,14 +313,19 @@ impl AtomicBool {
     }
 }
 
+#[cfg(ptr_native)]
+pub use core::sync::atomic::AtomicPtr;
+
+#[cfg(not(ptr_native))]
 #[repr(transparent)]
 pub struct AtomicPtr<T> {
-    #[cfg(polyfill_types)]
+    #[cfg(ptr_full)]
     inner: core::cell::UnsafeCell<*mut T>,
-    #[cfg(not(polyfill_types))]
+    #[cfg(not(ptr_full))]
     inner: core::sync::atomic::AtomicPtr<T>,
 }
 
+#[cfg(not(ptr_native))]
 impl<T> Default for AtomicPtr<T> {
     /// Creates a null `AtomicPtr<T>`.
     #[inline]
@@ -311,15 +334,18 @@ impl<T> Default for AtomicPtr<T> {
     }
 }
 
+#[cfg(not(ptr_native))]
 unsafe impl<T> Sync for AtomicPtr<T> {}
+#[cfg(not(ptr_native))]
 unsafe impl<T> Send for AtomicPtr<T> {}
 
+#[cfg(not(ptr_native))]
 impl<T> AtomicPtr<T> {
     pub const fn new(v: *mut T) -> AtomicPtr<T> {
         Self {
-            #[cfg(polyfill_types)]
+            #[cfg(ptr_full)]
             inner: core::cell::UnsafeCell::new(v),
-            #[cfg(not(polyfill_types))]
+            #[cfg(not(ptr_full))]
             inner: core::sync::atomic::AtomicPtr::new(v),
         }
     }
@@ -329,16 +355,16 @@ impl<T> AtomicPtr<T> {
     }
 
     pub fn load(&self, _order: Ordering) -> *mut T {
-        #[cfg(polyfill_types)]
+        #[cfg(ptr_full)]
         return critical_section(|| unsafe { *self.inner.get() });
-        #[cfg(not(polyfill_types))]
+        #[cfg(not(ptr_full))]
         return self.inner.load(_order);
     }
 
     pub fn store(&self, val: *mut T, _order: Ordering) {
-        #[cfg(polyfill_types)]
+        #[cfg(ptr_full)]
         return critical_section(|| unsafe { *self.inner.get() = val });
-        #[cfg(not(polyfill_types))]
+        #[cfg(not(ptr_full))]
         return self.inner.store(val, _order);
     }
 
@@ -404,6 +430,7 @@ impl<T> AtomicPtr<T> {
     }
 }
 
+#[allow(unused)]
 fn load_ordering(order: Ordering) -> Ordering {
     match order {
         Ordering::Release => Ordering::Relaxed,
@@ -415,6 +442,7 @@ fn load_ordering(order: Ordering) -> Ordering {
     }
 }
 
+#[allow(unused)]
 fn store_ordering(order: Ordering) -> Ordering {
     match order {
         Ordering::Release => Ordering::Release,
@@ -426,6 +454,7 @@ fn store_ordering(order: Ordering) -> Ordering {
     }
 }
 
+#[allow(unused)]
 fn critical_section<R>(f: impl FnOnce() -> R) -> R {
     critical_section::with(move |_| f())
 }
