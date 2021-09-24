@@ -73,6 +73,20 @@ macro_rules! atomic_int {
                 return self.inner.store(val, _order);
             }
 
+            fn load_nocs(&self, _order: Ordering) -> $int_type {
+                #[cfg($cfg_full)]
+                return unsafe { *self.inner.get() };
+                #[cfg(not($cfg_full))]
+                return self.inner.load(_order);
+            }
+
+            fn store_nocs(&self, val: $int_type, _order: Ordering) {
+                #[cfg($cfg_full)]
+                return unsafe { *self.inner.get() = val };
+                #[cfg(not($cfg_full))]
+                return self.inner.store(val, _order);
+            }
+
             pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
                 self.op(order, |_| val)
             }
@@ -95,9 +109,9 @@ macro_rules! atomic_int {
                 _failure: Ordering,
             ) -> Result<$int_type, $int_type> {
                 critical_section(|| {
-                    let old = self.load(load_ordering(success));
+                    let old = self.load_nocs(load_ordering(success));
                     if old == current {
-                        self.store(new, store_ordering(success));
+                        self.store_nocs(new, store_ordering(success));
                         Ok(old)
                     } else {
                         Err(old)
@@ -139,9 +153,9 @@ macro_rules! atomic_int {
                 F: FnMut($int_type) -> Option<$int_type>,
             {
                 critical_section(|| {
-                    let old = self.load(load_ordering(set_order));
+                    let old = self.load_nocs(load_ordering(set_order));
                     if let Some(new) = f(old) {
-                        self.store(new, store_ordering(set_order));
+                        self.store_nocs(new, store_ordering(set_order));
                         Ok(old)
                     } else {
                         Err(old)
@@ -159,9 +173,9 @@ macro_rules! atomic_int {
 
             fn op(&self, order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
                 critical_section(|| {
-                    let old = self.load(load_ordering(order));
+                    let old = self.load_nocs(load_ordering(order));
                     let new = f(old);
-                    self.store(new, store_ordering(order));
+                    self.store_nocs(new, store_ordering(order));
                     old
                 })
             }
@@ -229,6 +243,20 @@ impl AtomicBool {
         return self.inner.store(val, _order);
     }
 
+    fn load_nocs(&self, _order: Ordering) -> bool {
+        #[cfg(bool_full)]
+        return unsafe { *self.inner.get() };
+        #[cfg(not(bool_full))]
+        return self.inner.load(_order);
+    }
+
+    fn store_nocs(&self, val: bool, _order: Ordering) {
+        #[cfg(bool_full)]
+        return unsafe { *self.inner.get() = val };
+        #[cfg(not(bool_full))]
+        return self.inner.store(val, _order);
+    }
+
     pub fn swap(&self, val: bool, order: Ordering) -> bool {
         self.op(order, |_| val)
     }
@@ -251,9 +279,9 @@ impl AtomicBool {
         _failure: Ordering,
     ) -> Result<bool, bool> {
         critical_section(|| {
-            let old = self.load(load_ordering(success));
+            let old = self.load_nocs(load_ordering(success));
             if old == current {
-                self.store(new, store_ordering(success));
+                self.store_nocs(new, store_ordering(success));
                 Ok(old)
             } else {
                 Err(old)
@@ -287,9 +315,9 @@ impl AtomicBool {
         F: FnMut(bool) -> Option<bool>,
     {
         critical_section(|| {
-            let old = self.load(load_ordering(set_order));
+            let old = self.load_nocs(load_ordering(set_order));
             if let Some(new) = f(old) {
-                self.store(new, store_ordering(set_order));
+                self.store_nocs(new, store_ordering(set_order));
                 Ok(old)
             } else {
                 Err(old)
@@ -307,9 +335,9 @@ impl AtomicBool {
 
     fn op(&self, order: Ordering, f: impl FnOnce(bool) -> bool) -> bool {
         critical_section(|| {
-            let old = self.load(load_ordering(order));
+            let old = self.load_nocs(load_ordering(order));
             let new = f(old);
-            self.store(new, store_ordering(order));
+            self.store_nocs(new, store_ordering(order));
             old
         })
     }
@@ -370,6 +398,20 @@ impl<T> AtomicPtr<T> {
         return self.inner.store(val, _order);
     }
 
+    fn load_nocs(&self, _order: Ordering) -> *mut T {
+        #[cfg(ptr_full)]
+        return unsafe { *self.inner.get() };
+        #[cfg(not(ptr_full))]
+        return self.inner.load(_order);
+    }
+
+    fn store_nocs(&self, val: *mut T, _order: Ordering) {
+        #[cfg(ptr_full)]
+        return unsafe { *self.inner.get() = val };
+        #[cfg(not(ptr_full))]
+        return self.inner.store(val, _order);
+    }
+
     pub fn swap(&self, val: *mut T, order: Ordering) -> *mut T {
         self.op(order, |_| val)
     }
@@ -392,9 +434,9 @@ impl<T> AtomicPtr<T> {
         _failure: Ordering,
     ) -> Result<*mut T, *mut T> {
         critical_section(|| {
-            let old = self.load(load_ordering(success));
+            let old = self.load_nocs(load_ordering(success));
             if old == current {
-                self.store(new, store_ordering(success));
+                self.store_nocs(new, store_ordering(success));
                 Ok(old)
             } else {
                 Err(old)
@@ -412,9 +454,9 @@ impl<T> AtomicPtr<T> {
         F: FnMut(*mut T) -> Option<*mut T>,
     {
         critical_section(|| {
-            let old = self.load(load_ordering(set_order));
+            let old = self.load_nocs(load_ordering(set_order));
             if let Some(new) = f(old) {
-                self.store(new, store_ordering(set_order));
+                self.store_nocs(new, store_ordering(set_order));
                 Ok(old)
             } else {
                 Err(old)
@@ -424,9 +466,9 @@ impl<T> AtomicPtr<T> {
 
     fn op(&self, order: Ordering, f: impl FnOnce(*mut T) -> *mut T) -> *mut T {
         critical_section(|| {
-            let old = self.load(load_ordering(order));
+            let old = self.load_nocs(load_ordering(order));
             let new = f(old);
-            self.store(new, store_ordering(order));
+            self.store_nocs(new, store_ordering(order));
             old
         })
     }
