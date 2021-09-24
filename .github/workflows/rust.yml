@@ -15,11 +15,5 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - name: install
-        run: rustup target add thumbv7em-none-eabi thumbv6m-none-eabi
       - name: Build
         run: ./ci.sh
