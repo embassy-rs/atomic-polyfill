@@ -17,5 +17,8 @@ categories = [
 [target.thumbv6m-none-eabi.dependencies]
 cortex-m = {version = "0.7.1"}
 
-[target.riscv32imc-unknown-none-elf.dependencies]
+[target.'cfg(target_arch = "riscv32")'.dependencies]
 riscv = {version = "0.7.0"}
+
+[build-dependencies]
+riscv-target = "0.1.2"
