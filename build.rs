@@ -32,6 +32,8 @@ fn main() {
         (Full, Full)
     } else if target.starts_with("riscv32") {
         (Native, Full)
+    } else if target.starts_with("thumbv4") {
+        (Full, Full)
     } else if target.starts_with("thumbv6m-") {
         (Cas, Full)
     } else if target.starts_with("thumb") {
