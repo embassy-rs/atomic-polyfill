@@ -15,6 +15,7 @@ The right polyfill level is automatically picked based on the target and the ato
 
 | Target             | Level            | Level for u64/i64 |
 |--------------------|------------------|-------------------|
+| thumbv4t           | Full<sup>1</sup> | Full              |
 | thumbv6m           | CAS              | Full              |
 | thumbv7*, thumbv8* | Native           | Full              |
 | riscv32imc         | Full<sup>1</sup> | Full              |
