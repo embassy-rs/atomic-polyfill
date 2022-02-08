@@ -216,6 +216,14 @@ impl Default for AtomicBool {
 }
 
 #[cfg(not(bool_native))]
+impl From<bool> for AtomicBool {
+    #[inline]
+    fn from(v: bool) -> Self {
+        Self::new(v)
+    }
+}
+
+#[cfg(not(bool_native))]
 unsafe impl Send for AtomicBool {}
 #[cfg(not(bool_native))]
 unsafe impl Sync for AtomicBool {}
