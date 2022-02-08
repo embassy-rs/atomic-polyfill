@@ -224,6 +224,13 @@ impl From<bool> for AtomicBool {
 }
 
 #[cfg(not(bool_native))]
+impl core::fmt::Debug for AtomicBool {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
+    }
+}
+
+#[cfg(not(bool_native))]
 unsafe impl Send for AtomicBool {}
 #[cfg(not(bool_native))]
 unsafe impl Sync for AtomicBool {}
