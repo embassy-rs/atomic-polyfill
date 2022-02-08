@@ -20,6 +20,8 @@ macro_rules! atomic_int {
         unsafe impl Send for $atomic_type {}
         #[cfg(not($cfg_native))]
         unsafe impl Sync for $atomic_type {}
+        #[cfg(not($cfg_native))]
+        impl core::panic::RefUnwindSafe for $atomic_type {}
 
         #[cfg(not($cfg_native))]
         impl Default for $atomic_type {
@@ -53,6 +55,10 @@ macro_rules! atomic_int {
                     #[cfg(not($cfg_full))]
                     inner: core::sync::atomic::$atomic_type::new(v),
                 }
+            }
+
+            pub fn into_inner(self) -> $int_type {
+                self.inner.into_inner()
             }
 
             pub fn get_mut(&mut self) -> &mut $int_type {
@@ -234,6 +240,8 @@ impl core::fmt::Debug for AtomicBool {
 unsafe impl Send for AtomicBool {}
 #[cfg(not(bool_native))]
 unsafe impl Sync for AtomicBool {}
+#[cfg(not(bool_native))]
+impl core::panic::RefUnwindSafe for AtomicBool {}
 
 #[cfg(not(bool_native))]
 impl AtomicBool {
@@ -244,6 +252,14 @@ impl AtomicBool {
             #[cfg(not(bool_full))]
             inner: core::sync::atomic::AtomicBool::new(v),
         }
+    }
+
+    pub fn into_inner(self) -> bool {
+        self.inner.into_inner()
+    }
+
+    pub fn get_mut(&mut self) -> &mut bool {
+        self.inner.get_mut()
     }
 
     pub fn load(&self, _order: Ordering) -> bool {
@@ -382,9 +398,33 @@ impl<T> Default for AtomicPtr<T> {
 }
 
 #[cfg(not(ptr_native))]
+impl<T> From<*mut T> for AtomicPtr<T> {
+    #[inline]
+    fn from(v: *mut T) -> Self {
+        Self::new(v)
+    }
+}
+
+#[cfg(not(ptr_native))]
+impl<T> core::fmt::Debug for AtomicPtr<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
+    }
+}
+
+#[cfg(not(ptr_native))]
+impl<T> core::fmt::Pointer for AtomicPtr<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
+    }
+}
+
+#[cfg(not(ptr_native))]
 unsafe impl<T> Sync for AtomicPtr<T> {}
 #[cfg(not(ptr_native))]
 unsafe impl<T> Send for AtomicPtr<T> {}
+#[cfg(not(ptr_native))]
+impl<T> core::panic::RefUnwindSafe for AtomicPtr<T> {}
 
 #[cfg(not(ptr_native))]
 impl<T> AtomicPtr<T> {
@@ -395,6 +435,10 @@ impl<T> AtomicPtr<T> {
             #[cfg(not(ptr_full))]
             inner: core::sync::atomic::AtomicPtr::new(v),
         }
+    }
+
+    pub fn into_inner(self) -> *mut T {
+        self.inner.into_inner()
     }
 
     pub fn get_mut(&mut self) -> &mut *mut T {
