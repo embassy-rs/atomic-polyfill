@@ -11,6 +11,7 @@ No unreleased changes yet
 
 ## 0.1.6 - 2022-02-08
 
+- Add polyfill support for `thumbv4t` targets. (Nintendo Game Boy Advance)
 - Added `get_mut()` to `AtomicBool`.
 - Added `into_inner()` to all atomics
 - Added `fmt::Debug` impl to `AtomicBool`, `AtomicPtr`.
