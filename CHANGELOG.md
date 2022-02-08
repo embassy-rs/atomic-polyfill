@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 0.1.6 - 2022-02-08
+
+- Added `get_mut()` to `AtomicBool`.
+- Added `into_inner()` to all atomics
+- Added `fmt::Debug` impl to `AtomicBool`, `AtomicPtr`.
+- Added `fmt::Pointer` impl to `AtomicPtr`.
+- Added `From<*mut T>` impl to `AtomicPtr`.
+- Added `RefUnwindSafe` impl to all atomics.
+
 ## 0.1.5 - 2021-11-02
 
 - Updated critical-section to v0.2.5. Fixes `std` implementation to allow reentrant (nested) critical sections. This would previously deadlock.
