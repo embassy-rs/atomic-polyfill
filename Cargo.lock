@@ -16,7 +16,6 @@ name = "atomic-polyfill"
 version = "0.1.6"
 dependencies = [
  "critical-section",
- "riscv-target",
 ]
 
 [[package]]
