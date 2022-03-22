@@ -67,8 +67,7 @@ dependencies = [
 [[package]]
 name = "critical-section"
 version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01e191a5a6f6edad9b679777ef6b6c0f2bdd4a333f2ecb8f61c3e28109a03d70"
+source = "git+https://github.com/torrancew/critical-section.git?branch=support/avr-platform#928471f4594f2eeace551f699e28cd1acccd0f7e"
 dependencies = [
  "bare-metal 1.0.0",
  "cfg-if",

@@ -38,6 +38,8 @@ fn main() {
         (Cas, Full)
     } else if target.starts_with("thumb") {
         (Native, Full)
+    } else if target.starts_with("avr-") {
+        (Full, Full)
     } else {
         (Native, Native)
     };
@@ -54,6 +56,10 @@ fn main() {
     println!("cargo:rustc-cfg=isize_{}", level);
     println!("cargo:rustc-cfg=ptr_{}", level);
     println!("cargo:rustc-cfg=bool_{}", level);
+
+    if target.starts_with("avr-") {
+        println!("cargo:rustc-cfg=missing_refunwindsafe")
+    }
 }
 
 fn is_riscv_without_atomic_ext(target: &str) -> bool {
