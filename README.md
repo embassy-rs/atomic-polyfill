@@ -20,13 +20,16 @@ The right polyfill level is automatically picked based on the target and the ato
 | thumbv7*, thumbv8* | Native           | Full              |
 | riscv32imc         | Full<sup>1</sup> | Full              |
 | riscv32imac        | Native           | Full              |
-| Other<sup>2</sup>  | Native           | Native            |
+| xtensa-*-espidf    | Native           | Native            |
+| xtensa-esp32-*     | Native           | Full              |
+| xtensa-esp32s2-*   | Full             | Full              |
+| xtensa-esp32s3-*   | Native           | Full              |
+| xtensa-esp8266-*   | Cas              | Full              |
 
 <sup>1</sup>: The hardware is capable of supporting atomic load/stores up to 32 bits, so this could be "CAS" instead of "Full". However,
 support for this is missing in Rust. See [discussion here](https://github.com/rust-lang/rust/pull/81752).
 
-<sup>2</sup>: `atomic-polyfill` assumes unknown targets have full native support. This may not be true, in which case the
-build may fail. PRs for polyfilling more targets are welcome :)
+For targets not listed above, `atomic-polyfill` assumes nothing and reexports `core::sync::atomic::*`. No polyfilling is done. PRs for polyfilling more targets are welcome :)
 
 Note: polyfill is based on critical sections using the [`critical-section`](https://crates.io/crates/critical-section) crate. The default implementation is based on disabling all interrupts, so it's **unsound** on multi-core targets. It is possible to supply a custom 
 critical section implementation, check the `critical-section` docs for details.
