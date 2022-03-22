@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 name = "atomic-polyfill"
 readme = "README.md"
 repository = "https://github.com/embassy-rs/atomic-polyfill"
-version = "0.1.6"
+version = "0.1.7"
 
 categories = [
   "embedded",
