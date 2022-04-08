@@ -20,6 +20,4 @@ riscv-target = "0.1.2"
 [dependencies]
 
 [dependencies.critical-section]
-#version = "0.2.5"
-git="https://github.com/torrancew/critical-section.git"
-branch="support/avr-platform"
+version = "0.2.7"
