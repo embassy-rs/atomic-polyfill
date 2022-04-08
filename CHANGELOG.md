@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 0.1.7 - 2022-03-22
+
+- Added support for xtensa (ESP chips), with and without ESP-IDF.
+- Reexport `core::sync::atomic::*` as-is for unknown targets, to avoid build failures if they don't have full atomic support.
+
 ## 0.1.6 - 2022-02-08
 
 - Add polyfill support for `thumbv4t` targets. (Nintendo Game Boy Advance)
