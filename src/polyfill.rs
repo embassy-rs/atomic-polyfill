@@ -18,7 +18,7 @@ macro_rules! atomic_int {
         unsafe impl Send for $atomic_type {}
         #[cfg(not($cfg_native))]
         unsafe impl Sync for $atomic_type {}
-        #[cfg(not($cfg_native))]
+        #[cfg(all(not($cfg_native), not(missing_refunwindsafe)))]
         impl core::panic::RefUnwindSafe for $atomic_type {}
 
         #[cfg(not($cfg_native))]
@@ -238,7 +238,7 @@ impl core::fmt::Debug for AtomicBool {
 unsafe impl Send for AtomicBool {}
 #[cfg(not(bool_native))]
 unsafe impl Sync for AtomicBool {}
-#[cfg(not(bool_native))]
+#[cfg(all(not(bool_native), not(missing_refunwindsafe)))]
 impl core::panic::RefUnwindSafe for AtomicBool {}
 
 #[cfg(not(bool_native))]
@@ -421,7 +421,7 @@ impl<T> core::fmt::Pointer for AtomicPtr<T> {
 unsafe impl<T> Sync for AtomicPtr<T> {}
 #[cfg(not(ptr_native))]
 unsafe impl<T> Send for AtomicPtr<T> {}
-#[cfg(not(ptr_native))]
+#[cfg(all(not(ptr_native), not(missing_refunwindsafe)))]
 impl<T> core::panic::RefUnwindSafe for AtomicPtr<T> {}
 
 #[cfg(not(ptr_native))]
