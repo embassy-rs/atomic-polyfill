@@ -25,6 +25,7 @@ The right polyfill level is automatically picked based on the target and the ato
 | xtensa-esp32s2-*   | Full             | Full              |
 | xtensa-esp32s3-*   | Native           | Full              |
 | xtensa-esp8266-*   | Cas              | Full              |
+| AVR                | Full             | Full              |
 
 <sup>1</sup>: The hardware is capable of supporting atomic load/stores up to 32 bits, so this could be "CAS" instead of "Full". However,
 support for this is missing in Rust. See [discussion here](https://github.com/rust-lang/rust/pull/81752).

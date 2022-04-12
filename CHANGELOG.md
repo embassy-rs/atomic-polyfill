@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 0.1.8 - 2022-04-12
+
+- Added AVR support.
+
 ## 0.1.7 - 2022-03-22
 
 - Added support for xtensa (ESP chips), with and without ESP-IDF.
