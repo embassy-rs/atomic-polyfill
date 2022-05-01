@@ -4,7 +4,7 @@
 
 This crate polyfills atomics on targets where they're not available, using critical sections. It is intended to be a drop-in replacement for `core::sync::atomic`.
 
-There is three "levels" of polyfilling:
+There are three "levels" of polyfilling:
 - Native: No polyfilling is performed, the native `core::sync::atomic::AtomicXX` is reexported.
 - CAS: Only compare-and-set operations are polyfilled, while loads and stores are native.
 - Full: Both load/store and compare-and-set operations are polyfilled.
