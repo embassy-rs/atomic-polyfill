@@ -1,22 +1,19 @@
 use std::env;
 use std::fmt;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum PolyfillLevel {
     // Native, ie no polyfill. Just reexport from core::sync::atomic
     Native,
-    // CAS polyfill: use AtomicXX from core::sync::atomic, add CAS polyfills with critical sections
-    Cas,
     // Full polyfill: polyfill both load/store and CAS with critical sections
-    Full,
+    Polyfill,
 }
 
 impl fmt::Display for PolyfillLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match *self {
             Self::Native => "native",
-            Self::Cas => "cas",
-            Self::Full => "full",
+            Self::Polyfill => "polyfill",
         };
         write!(f, "{}", s)
     }
@@ -28,40 +25,45 @@ fn main() {
     use PolyfillLevel::*;
 
     let patterns = [
-        ("riscv32imac-*", (Native, Full)),
-        ("riscv32gc-*", (Native, Full)),
+        ("riscv32imac-*", (Native, Polyfill)),
+        ("riscv32gc-*", (Native, Polyfill)),
         ("riscv32imc-*-espidf", (Native, Native)),
-        ("riscv32*", (Full, Full)),
-        ("avr-*", (Full, Full)),
-        ("thumbv4t-*", (Full, Full)),
-        ("thumbv6m-*", (Cas, Full)),
-        ("thumbv7m-*", (Native, Full)),
-        ("thumbv7em-*", (Native, Full)),
-        ("thumbv8m.base-*", (Native, Full)),
-        ("thumbv8m.main-*", (Native, Full)),
+        ("riscv32*", (Polyfill, Polyfill)),
+        ("avr-*", (Polyfill, Polyfill)),
+        ("thumbv4t-*", (Polyfill, Polyfill)),
+        ("thumbv6m-*", (Polyfill, Polyfill)),
+        ("thumbv7m-*", (Native, Polyfill)),
+        ("thumbv7em-*", (Native, Polyfill)),
+        ("thumbv8m.base-*", (Native, Polyfill)),
+        ("thumbv8m.main-*", (Native, Polyfill)),
         ("xtensa-*-espidf", (Native, Native)),
-        ("xtensa-esp32-*", (Native, Full)),
-        ("xtensa-esp32s2-*", (Full, Full)),
-        ("xtensa-esp32s3-*", (Native, Full)),
-        ("xtensa-esp8266-*", (Cas, Full)),
+        ("xtensa-esp32-*", (Native, Polyfill)),
+        ("xtensa-esp32s2-*", (Polyfill, Polyfill)),
+        ("xtensa-esp32s3-*", (Native, Polyfill)),
+        ("xtensa-esp8266-*", (Polyfill, Polyfill)),
     ];
 
     if let Some((_, (level, level64))) = patterns
         .iter()
         .find(|(pattern, _)| matches(pattern, &target))
     {
-        println!("cargo:rustc-cfg=u8_{}", level);
-        println!("cargo:rustc-cfg=u16_{}", level);
-        println!("cargo:rustc-cfg=u32_{}", level);
-        println!("cargo:rustc-cfg=u64_{}", level64);
-        println!("cargo:rustc-cfg=usize_{}", level);
-        println!("cargo:rustc-cfg=i8_{}", level);
-        println!("cargo:rustc-cfg=i16_{}", level);
-        println!("cargo:rustc-cfg=i32_{}", level);
-        println!("cargo:rustc-cfg=i64_{}", level64);
-        println!("cargo:rustc-cfg=isize_{}", level);
-        println!("cargo:rustc-cfg=ptr_{}", level);
-        println!("cargo:rustc-cfg=bool_{}", level);
+        if *level == PolyfillLevel::Polyfill {
+            println!("cargo:rustc-cfg=polyfill_u8");
+            println!("cargo:rustc-cfg=polyfill_u16");
+            println!("cargo:rustc-cfg=polyfill_u32");
+            println!("cargo:rustc-cfg=polyfill_usize");
+            println!("cargo:rustc-cfg=polyfill_i8");
+            println!("cargo:rustc-cfg=polyfill_i16");
+            println!("cargo:rustc-cfg=polyfill_i32");
+            println!("cargo:rustc-cfg=polyfill_isize");
+            println!("cargo:rustc-cfg=polyfill_ptr");
+            println!("cargo:rustc-cfg=polyfill_bool");
+        }
+
+        if *level64 == PolyfillLevel::Polyfill {
+            println!("cargo:rustc-cfg=polyfill_u64");
+            println!("cargo:rustc-cfg=polyfill_i64");
+        }
     } else {
         // If we don't know about the target, just reexport the entire `core::atomic::*`
         // This doesn't polyfill anything, but it's guaranteed to never fail build.

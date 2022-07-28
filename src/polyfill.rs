@@ -1,27 +1,24 @@
 pub use core::sync::atomic::{compiler_fence, fence, Ordering};
 
 macro_rules! atomic_int {
-    ($int_type:ident,$atomic_type:ident, $cfg_native:ident, $cfg_cas:ident, $cfg_full:ident) => {
-        #[cfg($cfg_native)]
+    ($int_type:ident,$atomic_type:ident, $cfg:ident) => {
+        #[cfg(not($cfg))]
         pub use core::sync::atomic::$atomic_type;
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         #[repr(transparent)]
         pub struct $atomic_type {
-            #[cfg($cfg_full)]
             inner: core::cell::UnsafeCell<$int_type>,
-            #[cfg(not($cfg_full))]
-            inner: core::sync::atomic::$atomic_type,
         }
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         unsafe impl Send for $atomic_type {}
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         unsafe impl Sync for $atomic_type {}
-        #[cfg(all(not($cfg_native), not(missing_refunwindsafe)))]
+        #[cfg(all($cfg, not(missing_refunwindsafe)))]
         impl core::panic::RefUnwindSafe for $atomic_type {}
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         impl Default for $atomic_type {
             #[inline]
             fn default() -> Self {
@@ -29,7 +26,7 @@ macro_rules! atomic_int {
             }
         }
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         impl From<$int_type> for $atomic_type {
             #[inline]
             fn from(v: $int_type) -> Self {
@@ -37,21 +34,18 @@ macro_rules! atomic_int {
             }
         }
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         impl core::fmt::Debug for $atomic_type {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
             }
         }
 
-        #[cfg(not($cfg_native))]
+        #[cfg($cfg)]
         impl $atomic_type {
             pub const fn new(v: $int_type) -> Self {
                 Self {
-                    #[cfg($cfg_full)]
                     inner: core::cell::UnsafeCell::new(v),
-                    #[cfg(not($cfg_full))]
-                    inner: core::sync::atomic::$atomic_type::new(v),
                 }
             }
 
@@ -64,31 +58,11 @@ macro_rules! atomic_int {
             }
 
             pub fn load(&self, _order: Ordering) -> $int_type {
-                #[cfg($cfg_full)]
-                return critical_section(|| unsafe { *self.inner.get() });
-                #[cfg(not($cfg_full))]
-                return self.inner.load(_order);
+                return critical_section::with(|_| unsafe { *self.inner.get() });
             }
 
             pub fn store(&self, val: $int_type, _order: Ordering) {
-                #[cfg($cfg_full)]
-                return critical_section(|| unsafe { *self.inner.get() = val });
-                #[cfg(not($cfg_full))]
-                return self.inner.store(val, _order);
-            }
-
-            fn load_nocs(&self, _order: Ordering) -> $int_type {
-                #[cfg($cfg_full)]
-                return unsafe { *self.inner.get() };
-                #[cfg(not($cfg_full))]
-                return self.inner.load(_order);
-            }
-
-            fn store_nocs(&self, val: $int_type, _order: Ordering) {
-                #[cfg($cfg_full)]
-                return unsafe { *self.inner.get() = val };
-                #[cfg(not($cfg_full))]
-                return self.inner.store(val, _order);
+                return critical_section::with(|_| unsafe { *self.inner.get() = val });
             }
 
             pub fn swap(&self, val: $int_type, order: Ordering) -> $int_type {
@@ -109,13 +83,14 @@ macro_rules! atomic_int {
                 &self,
                 current: $int_type,
                 new: $int_type,
-                success: Ordering,
+                _success: Ordering,
                 _failure: Ordering,
             ) -> Result<$int_type, $int_type> {
-                critical_section(|| {
-                    let old = self.load_nocs(load_ordering(success));
+                critical_section::with(|_| {
+                    let val = unsafe { &mut *self.inner.get() };
+                    let old = *val;
                     if old == current {
-                        self.store_nocs(new, store_ordering(success));
+                        *val = new;
                         Ok(old)
                     } else {
                         Err(old)
@@ -149,17 +124,18 @@ macro_rules! atomic_int {
 
             pub fn fetch_update<F>(
                 &self,
-                set_order: Ordering,
+                _set_order: Ordering,
                 _fetch_order: Ordering,
                 mut f: F,
             ) -> Result<$int_type, $int_type>
             where
                 F: FnMut($int_type) -> Option<$int_type>,
             {
-                critical_section(|| {
-                    let old = self.load_nocs(load_ordering(set_order));
+                critical_section::with(|_| {
+                    let val = unsafe { &mut *self.inner.get() };
+                    let old = *val;
                     if let Some(new) = f(old) {
-                        self.store_nocs(new, store_ordering(set_order));
+                        *val = new;
                         Ok(old)
                     } else {
                         Err(old)
@@ -175,11 +151,11 @@ macro_rules! atomic_int {
                 self.op(order, |old| old.min(val))
             }
 
-            fn op(&self, order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
-                critical_section(|| {
-                    let old = self.load_nocs(load_ordering(order));
-                    let new = f(old);
-                    self.store_nocs(new, store_ordering(order));
+            fn op(&self, _order: Ordering, f: impl FnOnce($int_type) -> $int_type) -> $int_type {
+                critical_section::with(|_| {
+                    let val = unsafe { &mut *self.inner.get() };
+                    let old = *val;
+                    *val = f(old);
                     old
                 })
             }
@@ -187,30 +163,27 @@ macro_rules! atomic_int {
     };
 }
 
-atomic_int!(u8, AtomicU8, u8_native, u8_cas, u8_full);
-atomic_int!(u16, AtomicU16, u16_native, u16_cas, u16_full);
-atomic_int!(u32, AtomicU32, u32_native, u32_cas, u32_full);
-atomic_int!(u64, AtomicU64, u64_native, u64_cas, u64_full);
-atomic_int!(usize, AtomicUsize, usize_native, usize_cas, usize_full);
-atomic_int!(i8, AtomicI8, i8_native, i8_cas, i8_full);
-atomic_int!(i16, AtomicI16, i16_native, i16_cas, i16_full);
-atomic_int!(i32, AtomicI32, i32_native, i32_cas, i32_full);
-atomic_int!(i64, AtomicI64, i64_native, i64_cas, i64_full);
-atomic_int!(isize, AtomicIsize, isize_native, isize_cas, isize_full);
+atomic_int!(u8, AtomicU8, polyfill_u8);
+atomic_int!(u16, AtomicU16, polyfill_u16);
+atomic_int!(u32, AtomicU32, polyfill_u32);
+atomic_int!(u64, AtomicU64, polyfill_u64);
+atomic_int!(usize, AtomicUsize, polyfill_usize);
+atomic_int!(i8, AtomicI8, polyfill_i8);
+atomic_int!(i16, AtomicI16, polyfill_i16);
+atomic_int!(i32, AtomicI32, polyfill_i32);
+atomic_int!(i64, AtomicI64, polyfill_i64);
+atomic_int!(isize, AtomicIsize, polyfill_isize);
 
-#[cfg(bool_native)]
+#[cfg(not(polyfill_bool))]
 pub use core::sync::atomic::AtomicBool;
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 #[repr(transparent)]
 pub struct AtomicBool {
-    #[cfg(bool_full)]
     inner: core::cell::UnsafeCell<bool>,
-    #[cfg(not(bool_full))]
-    inner: core::sync::atomic::AtomicBool,
 }
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 impl Default for AtomicBool {
     /// Creates an `AtomicBool` initialized to `false`.
     #[inline]
@@ -219,7 +192,7 @@ impl Default for AtomicBool {
     }
 }
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 impl From<bool> for AtomicBool {
     #[inline]
     fn from(v: bool) -> Self {
@@ -227,28 +200,25 @@ impl From<bool> for AtomicBool {
     }
 }
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 impl core::fmt::Debug for AtomicBool {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
     }
 }
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 unsafe impl Send for AtomicBool {}
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 unsafe impl Sync for AtomicBool {}
-#[cfg(all(not(bool_native), not(missing_refunwindsafe)))]
+#[cfg(all(polyfill_bool, not(missing_refunwindsafe)))]
 impl core::panic::RefUnwindSafe for AtomicBool {}
 
-#[cfg(not(bool_native))]
+#[cfg(polyfill_bool)]
 impl AtomicBool {
     pub const fn new(v: bool) -> AtomicBool {
         Self {
-            #[cfg(bool_full)]
             inner: core::cell::UnsafeCell::new(v),
-            #[cfg(not(bool_full))]
-            inner: core::sync::atomic::AtomicBool::new(v),
         }
     }
 
@@ -261,31 +231,11 @@ impl AtomicBool {
     }
 
     pub fn load(&self, _order: Ordering) -> bool {
-        #[cfg(bool_full)]
-        return critical_section(|| unsafe { *self.inner.get() });
-        #[cfg(not(bool_full))]
-        return self.inner.load(_order);
+        return critical_section::with(|_| unsafe { *self.inner.get() });
     }
 
     pub fn store(&self, val: bool, _order: Ordering) {
-        #[cfg(bool_full)]
-        return critical_section(|| unsafe { *self.inner.get() = val });
-        #[cfg(not(bool_full))]
-        return self.inner.store(val, _order);
-    }
-
-    fn load_nocs(&self, _order: Ordering) -> bool {
-        #[cfg(bool_full)]
-        return unsafe { *self.inner.get() };
-        #[cfg(not(bool_full))]
-        return self.inner.load(_order);
-    }
-
-    fn store_nocs(&self, val: bool, _order: Ordering) {
-        #[cfg(bool_full)]
-        return unsafe { *self.inner.get() = val };
-        #[cfg(not(bool_full))]
-        return self.inner.store(val, _order);
+        return critical_section::with(|_| unsafe { *self.inner.get() = val });
     }
 
     pub fn swap(&self, val: bool, order: Ordering) -> bool {
@@ -306,13 +256,14 @@ impl AtomicBool {
         &self,
         current: bool,
         new: bool,
-        success: Ordering,
+        _success: Ordering,
         _failure: Ordering,
     ) -> Result<bool, bool> {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(success));
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
             if old == current {
-                self.store_nocs(new, store_ordering(success));
+                *val = new;
                 Ok(old)
             } else {
                 Err(old)
@@ -338,17 +289,18 @@ impl AtomicBool {
 
     pub fn fetch_update<F>(
         &self,
-        set_order: Ordering,
+        _set_order: Ordering,
         _fetch_order: Ordering,
         mut f: F,
     ) -> Result<bool, bool>
     where
         F: FnMut(bool) -> Option<bool>,
     {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(set_order));
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
             if let Some(new) = f(old) {
-                self.store_nocs(new, store_ordering(set_order));
+                *val = new;
                 Ok(old)
             } else {
                 Err(old)
@@ -364,11 +316,11 @@ impl AtomicBool {
         self.op(order, |old| old.min(val))
     }
 
-    fn op(&self, order: Ordering, f: impl FnOnce(bool) -> bool) -> bool {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(order));
-            let new = f(old);
-            self.store_nocs(new, store_ordering(order));
+    fn op(&self, _order: Ordering, f: impl FnOnce(bool) -> bool) -> bool {
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
+            *val = f(old);
             old
         })
     }
@@ -377,16 +329,13 @@ impl AtomicBool {
 #[cfg(ptr_native)]
 pub use core::sync::atomic::AtomicPtr;
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 #[repr(transparent)]
 pub struct AtomicPtr<T> {
-    #[cfg(ptr_full)]
     inner: core::cell::UnsafeCell<*mut T>,
-    #[cfg(not(ptr_full))]
-    inner: core::sync::atomic::AtomicPtr<T>,
 }
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 impl<T> Default for AtomicPtr<T> {
     /// Creates a null `AtomicPtr<T>`.
     #[inline]
@@ -395,7 +344,7 @@ impl<T> Default for AtomicPtr<T> {
     }
 }
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 impl<T> From<*mut T> for AtomicPtr<T> {
     #[inline]
     fn from(v: *mut T) -> Self {
@@ -403,35 +352,32 @@ impl<T> From<*mut T> for AtomicPtr<T> {
     }
 }
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 impl<T> core::fmt::Debug for AtomicPtr<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
     }
 }
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 impl<T> core::fmt::Pointer for AtomicPtr<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
     }
 }
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 unsafe impl<T> Sync for AtomicPtr<T> {}
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 unsafe impl<T> Send for AtomicPtr<T> {}
-#[cfg(all(not(ptr_native), not(missing_refunwindsafe)))]
+#[cfg(all(polyfill_ptr, not(missing_refunwindsafe)))]
 impl<T> core::panic::RefUnwindSafe for AtomicPtr<T> {}
 
-#[cfg(not(ptr_native))]
+#[cfg(polyfill_ptr)]
 impl<T> AtomicPtr<T> {
     pub const fn new(v: *mut T) -> AtomicPtr<T> {
         Self {
-            #[cfg(ptr_full)]
             inner: core::cell::UnsafeCell::new(v),
-            #[cfg(not(ptr_full))]
-            inner: core::sync::atomic::AtomicPtr::new(v),
         }
     }
 
@@ -444,31 +390,11 @@ impl<T> AtomicPtr<T> {
     }
 
     pub fn load(&self, _order: Ordering) -> *mut T {
-        #[cfg(ptr_full)]
-        return critical_section(|| unsafe { *self.inner.get() });
-        #[cfg(not(ptr_full))]
-        return self.inner.load(_order);
+        return critical_section::with(|_| unsafe { *self.inner.get() });
     }
 
     pub fn store(&self, val: *mut T, _order: Ordering) {
-        #[cfg(ptr_full)]
-        return critical_section(|| unsafe { *self.inner.get() = val });
-        #[cfg(not(ptr_full))]
-        return self.inner.store(val, _order);
-    }
-
-    fn load_nocs(&self, _order: Ordering) -> *mut T {
-        #[cfg(ptr_full)]
-        return unsafe { *self.inner.get() };
-        #[cfg(not(ptr_full))]
-        return self.inner.load(_order);
-    }
-
-    fn store_nocs(&self, val: *mut T, _order: Ordering) {
-        #[cfg(ptr_full)]
-        return unsafe { *self.inner.get() = val };
-        #[cfg(not(ptr_full))]
-        return self.inner.store(val, _order);
+        return critical_section::with(|_| unsafe { *self.inner.get() = val });
     }
 
     pub fn swap(&self, val: *mut T, order: Ordering) -> *mut T {
@@ -489,13 +415,14 @@ impl<T> AtomicPtr<T> {
         &self,
         current: *mut T,
         new: *mut T,
-        success: Ordering,
+        _success: Ordering,
         _failure: Ordering,
     ) -> Result<*mut T, *mut T> {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(success));
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
             if old == current {
-                self.store_nocs(new, store_ordering(success));
+                *val = new;
                 Ok(old)
             } else {
                 Err(old)
@@ -505,17 +432,18 @@ impl<T> AtomicPtr<T> {
 
     pub fn fetch_update<F>(
         &self,
-        set_order: Ordering,
+        _set_order: Ordering,
         _fetch_order: Ordering,
         mut f: F,
     ) -> Result<*mut T, *mut T>
     where
         F: FnMut(*mut T) -> Option<*mut T>,
     {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(set_order));
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
             if let Some(new) = f(old) {
-                self.store_nocs(new, store_ordering(set_order));
+                *val = new;
                 Ok(old)
             } else {
                 Err(old)
@@ -523,41 +451,12 @@ impl<T> AtomicPtr<T> {
         })
     }
 
-    fn op(&self, order: Ordering, f: impl FnOnce(*mut T) -> *mut T) -> *mut T {
-        critical_section(|| {
-            let old = self.load_nocs(load_ordering(order));
-            let new = f(old);
-            self.store_nocs(new, store_ordering(order));
+    fn op(&self, _order: Ordering, f: impl FnOnce(*mut T) -> *mut T) -> *mut T {
+        critical_section::with(|_| {
+            let val = unsafe { &mut *self.inner.get() };
+            let old = *val;
+            *val = f(old);
             old
         })
     }
-}
-
-#[allow(unused)]
-fn load_ordering(order: Ordering) -> Ordering {
-    match order {
-        Ordering::Release => Ordering::Relaxed,
-        Ordering::Relaxed => Ordering::Relaxed,
-        Ordering::SeqCst => Ordering::SeqCst,
-        Ordering::Acquire => Ordering::Acquire,
-        Ordering::AcqRel => Ordering::Acquire,
-        x => x,
-    }
-}
-
-#[allow(unused)]
-fn store_ordering(order: Ordering) -> Ordering {
-    match order {
-        Ordering::Release => Ordering::Release,
-        Ordering::Relaxed => Ordering::Relaxed,
-        Ordering::SeqCst => Ordering::SeqCst,
-        Ordering::Acquire => Ordering::Relaxed,
-        Ordering::AcqRel => Ordering::Release,
-        x => x,
-    }
-}
-
-#[allow(unused)]
-fn critical_section<R>(f: impl FnOnce() -> R) -> R {
-    critical_section::with(move |_| f())
 }
