@@ -1,7 +1,7 @@
 [package]
 authors = ["Dario Nieuwenhuis <dirbaio@dirbaio.net>"]
 description = "Atomic polyfills, for targets where they're not available."
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 name = "atomic-polyfill"
 readme = "README.md"

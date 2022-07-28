@@ -69,10 +69,6 @@ fn main() {
         // This doesn't polyfill anything, but it's guaranteed to never fail build.
         println!("cargo:rustc-cfg=reexport_core");
     }
-
-    if target.starts_with("avr-") {
-        println!("cargo:rustc-cfg=missing_refunwindsafe")
-    }
 }
 
 // tiny glob replacement to avoid pulling in more crates.
