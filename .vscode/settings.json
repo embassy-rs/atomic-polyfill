@@ -1,10 +1,9 @@
 {
   "editor.formatOnSave": true,
-  "rust-analyzer.cargo.allFeatures": false,
-  "rust-analyzer.checkOnSave.allFeatures": false,
   "rust-analyzer.checkOnSave.allTargets": false,
   "rust-analyzer.cargo.target": "thumbv6m-none-eabi",
   "rust-analyzer.procMacro.enable": true,
-  "rust-analyzer.cargo.loadOutDirsFromCheck": true,
-  "rust-analyzer.assist.importMergeBehavior": "last",
+  "rust-analyzer.imports.granularity.group": "module",
+  "rust-analyzer.imports.granularity.enforce": true,
+  "rust-analyzer.cargo.buildScripts.enable": true,
 }
