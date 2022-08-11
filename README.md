@@ -8,6 +8,8 @@ There are two "levels" of polyfilling:
 - Native: No polyfilling is performed, the native `core::sync::atomic::AtomicXX` is reexported.
 - Full: Both load/store and compare-and-set operations are polyfilled.
 
+Polyfilling requires a [`critical-section`](https://github.com/rust-embedded/critical-section) implementation for the current target. Check the `critical-section` README for details.
+
 ## Target support
 
 The right polyfill level is automatically picked based on the target and the atomic width:
