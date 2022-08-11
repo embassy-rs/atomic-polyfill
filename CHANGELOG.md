@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 1.0.0 - 2022-08-12
+
+- Update to `critical-section` v1.0
+
+## 0.1.9 - 2022-08-12
+
+- Switch to only two polyfill levels.
+
+The "CAS" level which uses atomic load/store and critical-section based CAS was not
+sound, because `critical-section` guarantees only "no other critical section can run concurrently",
+not "no other code can run concurrently". Therefore a CS-based CAS can still race a native atomic store.
+
 ## 0.1.8 - 2022-04-12
 
 - Added AVR support.
