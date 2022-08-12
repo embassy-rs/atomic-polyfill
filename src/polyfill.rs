@@ -326,7 +326,7 @@ impl AtomicBool {
     }
 }
 
-#[cfg(ptr_native)]
+#[cfg(not(polyfill_ptr))]
 pub use core::sync::atomic::AtomicPtr;
 
 #[cfg(polyfill_ptr)]

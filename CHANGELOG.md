@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 1.0.1 - 2022-08-12
+
+- Fix `AtomicPtr` accidentally not being available when not polyfilled.
+
 ## 1.0.0 - 2022-08-12
 
 - Update to `critical-section` v1.0
+
+## 0.1.10 - 2022-08-12
+
+- Fix `AtomicPtr` accidentally not being available when not polyfilled.
 
 ## 0.1.9 - 2022-08-12
 
