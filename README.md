@@ -30,6 +30,11 @@ The right polyfill level is automatically picked based on the target and the ato
 
 For targets not listed above, `atomic-polyfill` assumes nothing and reexports `core::sync::atomic::*`. No polyfilling is done. PRs for polyfilling more targets are welcome :)
 
+## Minimum Supported Rust Version (MSRV)
+
+MSRV is currently **Rust 1.54**. MSRV may be upgraded at any new patch release as long
+as latest stable Rust is supported.
+
 ## License
 
 This work is licensed under either of
