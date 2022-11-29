@@ -8,6 +8,8 @@ There are two "levels" of polyfilling:
 - Native: No polyfilling is performed, the native `core::sync::atomic::AtomicXX` is reexported.
 - Full: Both load/store and compare-and-set operations are polyfilled.
 
+Polyfilling requires a [`critical-section`](https://github.com/rust-embedded/critical-section) implementation for the current target. Check the `critical-section` README for details.
+
 ## Target support
 
 The right polyfill level is automatically picked based on the target and the atomic width:
@@ -27,9 +29,6 @@ The right polyfill level is automatically picked based on the target and the ato
 | AVR                | Full             | Full              |
 
 For targets not listed above, `atomic-polyfill` assumes nothing and reexports `core::sync::atomic::*`. No polyfilling is done. PRs for polyfilling more targets are welcome :)
-
-Note: polyfill is based on critical sections using the [`critical-section`](https://crates.io/crates/critical-section) crate. The default implementation is based on disabling all interrupts, so it's **unsound** on multi-core targets. It is possible to supply a custom 
-critical section implementation, check the `critical-section` docs for details.
 
 ## Minimum Supported Rust Version (MSRV)
 

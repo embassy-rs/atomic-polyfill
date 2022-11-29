@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 1.0.1 - 2022-08-12
+
+- Fix `AtomicPtr` accidentally not being available when not polyfilled.
+
+## 1.0.0 - 2022-08-12
+
+- Update to `critical-section` v1.0
+
+## 0.1.11 - 2022-11-29
+
+- Bump `critical-section` dependency from `0.2` to `1.0`.
+
+  This is a breaking change if you were relying on the default implementations available on `critical-section 0.2.7` and earlier.
+  They have been removed in `critical-section 0.2.8` because they were **unsound**, since there's no way to guarantee they're correct for the
+  target in use (for example for multi-core embedded targets). Since `critical-section 0.2.8` just forwards to `1.0` now, we decided to change `atomic-polyfill` to use `1.0` directly.
+
+  If you're seeing a linker error like `undefined symbol: _critical_section_1_0_acquire`, you're affected. To fix it:
+
+  - If your target supports `std`: Add the `critical-section` dependency to `Cargo.toml` enabling the `std` feature.
+
+    ```toml
+    [dependencies]
+    critical-section = { version = "1.1", features = ["std"]}
+    ```
+
+  - For single-core Cortex-M targets in privileged mode:
+    ```toml
+    [dependencies]
+    cortex-m = { version = "0.7.6", features = ["critical-section-single-core"]}
+    ```
+
+  - For single-hart RISC-V targets in privileged mode:
+    ```toml
+    [dependencies]
+    riscv = { version = "0.10", features = ["critical-section-single-hart"]}
+    ```
+
+  - For other targets: check if your HAL or architecture-support crate has a `critical-section 1.0` implementation available. Otherwise, [provide your own](https://github.com/rust-embedded/critical-section#providing-an-implementation).
+
+## 0.1.10 - 2022-08-12
+
+- Fix `AtomicPtr` accidentally not being available when not polyfilled.
+
+## 0.1.9 - 2022-08-12
+
+- Switch to only two polyfill levels.
+
+The "CAS" level which uses atomic load/store and critical-section based CAS was not
+sound, because `critical-section` guarantees only "no other critical section can run concurrently",
+not "no other code can run concurrently". Therefore a CS-based CAS can still race a native atomic store.
+
 ## 0.1.8 - 2022-04-12
 
 - Added AVR support.
