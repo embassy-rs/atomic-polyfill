@@ -26,6 +26,7 @@ fn main() {
 
     let patterns = [
         ("avr-*", (Polyfill, Polyfill)),
+        ("msp430-none-elf", (Polyfill, Polyfill)),
         ("riscv32imac-*", (Native, Polyfill)),
         ("riscv32gc-*", (Native, Polyfill)),
         ("riscv32imc-*-espidf", (Native, Native)),
