@@ -25,11 +25,11 @@ fn main() {
     use PolyfillLevel::*;
 
     let patterns = [
+        ("avr-*", (Polyfill, Polyfill)),
         ("riscv32imac-*", (Native, Polyfill)),
         ("riscv32gc-*", (Native, Polyfill)),
         ("riscv32imc-*-espidf", (Native, Native)),
         ("riscv32*", (Polyfill, Polyfill)),
-        ("avr-*", (Polyfill, Polyfill)),
         ("thumbv4t-*", (Polyfill, Polyfill)),
         ("thumbv6m-*", (Polyfill, Polyfill)),
         ("thumbv7m-*", (Native, Polyfill)),
