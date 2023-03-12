@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "atomic-polyfill"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "critical-section",
 ]
