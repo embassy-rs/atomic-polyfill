@@ -231,11 +231,11 @@ impl AtomicBool {
     }
 
     pub fn load(&self, _order: Ordering) -> bool {
-        return critical_section::with(|_| unsafe { *self.inner.get() });
+        critical_section::with(|_| unsafe { *self.inner.get() })
     }
 
     pub fn store(&self, val: bool, _order: Ordering) {
-        return critical_section::with(|_| unsafe { *self.inner.get() = val });
+        critical_section::with(|_| unsafe { *self.inner.get() = val });
     }
 
     pub fn swap(&self, val: bool, order: Ordering) -> bool {
@@ -390,11 +390,11 @@ impl<T> AtomicPtr<T> {
     }
 
     pub fn load(&self, _order: Ordering) -> *mut T {
-        return critical_section::with(|_| unsafe { *self.inner.get() });
+        critical_section::with(|_| unsafe { *self.inner.get() })
     }
 
     pub fn store(&self, val: *mut T, _order: Ordering) {
-        return critical_section::with(|_| unsafe { *self.inner.get() = val });
+        critical_section::with(|_| unsafe { *self.inner.get() = val });
     }
 
     pub fn swap(&self, val: *mut T, order: Ordering) -> *mut T {
