@@ -16,3 +16,6 @@ categories = [
 
 [dependencies]
 critical-section = "1.0.0"
+
+[features]
+force-polyfill = []

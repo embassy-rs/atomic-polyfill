@@ -24,6 +24,23 @@ fn main() {
 
     use PolyfillLevel::*;
 
+    // If the user explicitly requests a polyfill, we add all the polyfill cfgs and exit.
+    if env::var("CARGO_FEATURE_FORCE_POLYFILL").is_ok() {
+        println!("cargo:rustc-cfg=polyfill_u8");
+        println!("cargo:rustc-cfg=polyfill_u16");
+        println!("cargo:rustc-cfg=polyfill_u32");
+        println!("cargo:rustc-cfg=polyfill_u64");
+        println!("cargo:rustc-cfg=polyfill_usize");
+        println!("cargo:rustc-cfg=polyfill_i8");
+        println!("cargo:rustc-cfg=polyfill_i16");
+        println!("cargo:rustc-cfg=polyfill_i32");
+        println!("cargo:rustc-cfg=polyfill_i64");
+        println!("cargo:rustc-cfg=polyfill_isize");
+        println!("cargo:rustc-cfg=polyfill_ptr");
+        println!("cargo:rustc-cfg=polyfill_bool");
+        return;
+    }
+
     let patterns = [
         ("avr-*", (Polyfill, Polyfill)),
         ("msp430-none-elf", (Polyfill, Polyfill)),
