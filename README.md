@@ -30,6 +30,11 @@ The right polyfill level is automatically picked based on the target and the ato
 
 For targets not listed above, `atomic-polyfill` assumes nothing and reexports `core::sync::atomic::*`. No polyfilling is done. PRs for polyfilling more targets are welcome :)
 
+## Forcing polyfill
+
+You can force polyfilling in targets that support atomic operations by setting the `force-polyfill` feature.
+This is useful for targets that do not fully support atomic operations such as load-reserved or store-conditionals.
+
 ## Minimum Supported Rust Version (MSRV)
 
 MSRV is currently **Rust 1.54**. MSRV may be upgraded at any new patch release as long
