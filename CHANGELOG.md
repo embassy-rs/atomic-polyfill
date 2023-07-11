@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No unreleased changes yet
 
+## 1.0.3 - 2023-07-11
+
+- Crate is deprecated, use `portable-atomic` instead.
+
 ## 1.0.2 - 2023-03-12
 
 - Add MSP430 support.

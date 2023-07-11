@@ -1,3 +1,17 @@
+# ⚠️ THIS CRATE IS DEPRECATED ⚠️
+
+**Use [`portable-atomic`](https://crates.io/crates/portable-atomic) instead.** It supports many more architectures and more efficient ways of emulating atomics.
+
+`portable-atomic` with the `critical-section` feature is a drop-in replacement. It uses the `critical-section` crate to ensure locking, just like `atomic-polyfill`.
+
+However, if your chip is single-core, you might want to enable the `unsafe-assume-single-core` feature instead. It makes `portable-atomic` emulate atomics by disabling interrupts.
+It is faster than using a `critical-section` implementation that disables interrupts, because it allows disabling them only on CAS operations, not in load/store operations.
+
+**If you're writing a library**, add a dependency on `portable-atomic` but do NOT enable any feature on it. Let the end user of your library enable the right features for their target.
+If you enable features, you're taking their choice away.
+
+-----
+
 # atomic-polyfill
 
 [![Documentation](https://docs.rs/atomic-polyfill/badge.svg)](https://docs.rs/atomic-polyfill)
