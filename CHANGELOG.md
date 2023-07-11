@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes yet
+- Add `force-polyfill` feature to force polyfilling even on targets that have native atomics.
 
 ## 1.0.3 - 2023-07-11
 
